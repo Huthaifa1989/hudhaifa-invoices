@@ -15,7 +15,7 @@
   - كهرباء
   - مياه
   - أرنونا
-  - وقود (بنزين/ديزل)
+  - وقود (بنزين/ديزل) هذه الوحيدة من ملف في الدرايف https://drive.google.com/drive/folders/1yHrqkmMP0brzJ4iwnEIz22DejTHaF7vy?usp=drive_link هذا رابط الملف الي انا برفع عليه الفواتير 
   - أخرى
 - يدعم **رفع ملفات يدوية** عبر `/api/upload`
 - يستخدم **Firestore Cache** لتجنب ضرب الـ API كثيرًا (يحدث فقط عند الحاجة أو عند طلب `?refresh=1`)
