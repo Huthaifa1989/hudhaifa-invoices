@@ -1,0 +1,227 @@
+﻿<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>فواتير الأرنونا</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#0b2130;
+      --ring:#e5e7eb;
+      --card:#ffffff;
+      --accent:#7c3aed;
+      --title:#6b21a8;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:'Cairo',sans-serif; min-height:100vh; display:flex; flex-direction:column;
+      background: radial-gradient(1200px 800px at 20% -10%, #f2e9ff 0%, #f6f0ff 40%, #fbf8ff 70%, #ffffff 100%);
+      color:var(--ink);
+    }
+    header{ text-align:center; padding:18px 12px 8px; }
+    header h2{ margin:0; font-weight:900; font-size:22px; color:var(--title); }
+    header .sub{ margin-top:4px; color:#5b5566; font-weight:700; font-size:14px; }
+    .home-link{
+      display:inline-block; margin-bottom:8px; padding:6px 14px; font-weight:700; border-radius:10px;
+      border:1px solid var(--accent); color:#fff; background:var(--accent); text-decoration:none;
+    }
+    .container{
+      width:min(960px,96%); margin:0 auto 18px; background:var(--card);
+      border:1px solid var(--ring); border-radius:20px; box-shadow:0 8px 24px rgba(0,0,0,.1); padding:20px;
+    }
+    h1{ margin:0 0 12px; text-align:center; color:#1e1b4b; font-weight:900; font-size:20px; }
+    .invoice{ background:#f8fafc; border:1px solid #e5e7eb; border-radius:14px; padding:14px; margin:12px 0; }
+    .invoice-title{ font-weight:900; color:#3b2d5a; margin-bottom:4px; word-break:break-word; }
+    .invoice-det{ font-size:.95rem; line-height:1.7; }
+    .actions{ margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn{ border:1px solid #cfd8dc; background:#fff; border-radius:12px; padding:9px 14px; cursor:pointer; font-weight:800; transition:.15s; }
+    .btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+    .no{ color:#b22222; font-weight:900; text-align:center; padding:18px 0; }
+    .error{ color:#b22222; font-weight:800; }
+    .skyline{ margin-top:auto; width:100%; height:140px; background:#fff url('arnona-skyline.png') no-repeat center bottom; background-size:contain; }
+
+    /* Modal */
+    #pdfModal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999; }
+    #pdfModal .box{
+      background:#fff; width:96%; max-width:980px; height:90vh; margin:3vh auto; border-radius:18px;
+      overflow:hidden; display:flex; flex-direction:column;
+    }
+    #pdfModal .head{ padding:12px 16px; border-bottom:1px solid #eef1f4; display:flex; justify-content:space-between; align-items:center; }
+    #pdfTitle{ color:#082230 } #pdfLoading{ padding:12px } #pdfFrame{ border:0; width:100%; flex:1; display:none; background:#fff; }
+    #toolbar{ padding:10px; border-top:1px solid #eef1f4; display:flex; gap:10px; align-items:center; background:#fafafa; }
+    .hidden{ display:none!important }
+
+    @media (max-width:700px){
+      .container{ padding:16px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="home-link">الصفحة الرئيسية</a>
+    <h2>بلدية القدس – الأرنونا</h2>
+    <div class="sub">عرض فواتير الأرنونا ومرفقاتها من البريد</div>
+  </header>
+
+  <div class="container">
+    <h1>فواتير الأرنونا</h1>
+    <div id="invoices"></div>
+  </div>
+
+  <div class="skyline" aria-hidden="true"></div>
+
+  <!-- Modal -->
+  <div id="pdfModal">
+    <div class="box">
+      <div class="head">
+        <strong id="pdfTitle">معاينة المستند</strong>
+        <button id="closePdfBtn" class="btn">إغلاق</button>
+      </div>
+      <div id="pdfLoading">جاري التحميل…</div>
+      <iframe id="pdfFrame" title="PDF Preview"></iframe>
+      <div id="toolbar">
+        <a id="downloadBtn" class="btn hidden" href="#" download>تحميل</a>
+        <button id="printBtn" class="btn hidden">طباعة</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== إعدادات عامة
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const TZ = 'Asia/Jerusalem', LOCALE = 'ar-PS';
+
+    function formatDateSmart(inv){
+      const cand = inv.dateIso || inv.date || inv.dateRaw || '';
+      if(!cand) return '-';
+      let d = new Date(cand);
+      if(isNaN(d)) { try{ d = new Date(Date.parse(cand)); }catch{} }
+      if(isNaN(d)) return inv.date || cand;
+      try{
+        return new Intl.DateTimeFormat(LOCALE,{
+          timeZone:TZ, weekday:'long', year:'numeric', month:'long', day:'numeric',
+          hour:'2-digit', minute:'2-digit'
+        }).format(d);
+      }catch{ return d.toLocaleString('ar', { timeZone: TZ }); }
+    }
+
+    async function fetchJSON(u){
+      const r = await fetch(u, { cache: 'no-store' });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+
+    // ✅ جلب مرفقات Gmail من المسار الصحيح
+    async function fetchAttachments(messageId){
+      const data = await fetchJSON(`/gmail/messages/${messageId}/attachments`);
+      return data.attachments || [];
+    }
+
+    // ===== المودال (ديسكتوب) / فتح مباشر (موبايل)
+    const Modal={ blob:null, name:null };
+    function closeModal(){
+      const f=document.getElementById('pdfFrame');
+      f.src='about:blank';
+      document.getElementById('pdfModal').style.display='none';
+      if(Modal.blob){ URL.revokeObjectURL(Modal.blob); Modal.blob=null; }
+    }
+    document.getElementById('closePdfBtn').onclick = closeModal;
+
+    async function openInline(item){
+      // موبايل: افتح inlineUrl مباشرة (أفضل استقرار)
+      if (IS_MOBILE && item.inlineUrl) {
+        window.open(item.inlineUrl, '_blank');
+        return;
+      }
+      // ديسكتوب: حمل كبافر واعرض داخل iframe للحفاظ على الختم/الدقة
+      const modal=document.getElementById('pdfModal');
+      const frame=document.getElementById('pdfFrame');
+      const loading=document.getElementById('pdfLoading');
+      const dl=document.getElementById('downloadBtn');
+      const pr=document.getElementById('printBtn');
+
+      dl.classList.add('hidden'); pr.classList.add('hidden');
+      frame.style.display='none'; loading.style.display='block';
+
+      const res = await fetch(item.downloadUrl, { cache:'no-store' });
+      const buf = await res.arrayBuffer();
+
+      if(Modal.blob) URL.revokeObjectURL(Modal.blob);
+      Modal.blob = URL.createObjectURL(new Blob([buf], { type:'application/pdf' }));
+      Modal.name = item.filename || 'document.pdf';
+
+      frame.onload = ()=>{
+        loading.style.display='none';
+        frame.style.display='block';
+        dl.classList.remove('hidden');
+        pr.classList.remove('hidden');
+      };
+      frame.src = Modal.blob + '#toolbar=1&navpanes=0&view=fitH';
+
+      dl.href = item.downloadUrl;
+      dl.setAttribute('download', Modal.name);
+      pr.onclick = ()=>{
+        const w = window.open(Modal.blob, '_blank');
+        setTimeout(()=>{ try{ w.print(); }catch{} }, 500);
+      };
+
+      modal.style.display='flex';
+    }
+
+    // ===== قائمة الأرنونا
+    function render(list){
+      const root=document.getElementById('invoices'); root.innerHTML='';
+      if(!list.length){ root.innerHTML='<div class="no">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø³ØªÙ†Ø¯Ø§Øª Ø­Ø§Ù„ÙŠØ§Ù‹.</div>'; return; }
+
+      list.forEach(inv=>{
+        const card=document.createElement('div'); card.className='invoice';
+
+        const title=document.createElement('div'); title.className='invoice-title';
+        title.textContent = inv.subject || 'مستند أرنونا';
+        card.appendChild(title);
+
+        const det=document.createElement('div'); det.className='invoice-det';
+        det.innerHTML = `
+          <b>التاريخ:</b> ${formatDateSmart(inv)}<br>
+          <b>المرسل:</b> ${inv.from || '-'}<br>
+          <b>مختصر:</b> ${inv.snippet || ''}
+        `;
+        card.appendChild(det);
+
+        const actions=document.createElement('div'); actions.className='actions';
+        const btn=document.createElement('button'); btn.className='btn primary'; btn.textContent='عرض المرفقات';
+        btn.onclick = async ()=>{
+          try{
+            const atts = await fetchAttachments(inv.id);
+            const pdf = atts.find(a => (a.filename||'').toLowerCase().endsWith('.pdf'));
+            if(!pdf){ alert('لا يوجد PDF مرفق'); return; }
+            openInline(pdf);
+          }catch{
+            const err=document.createElement('span'); err.className='error'; err.textContent='تعذّر تحميل المرفقات';
+            actions.appendChild(err);
+          }
+        };
+        actions.appendChild(btn);
+        card.appendChild(actions);
+
+        root.appendChild(card);
+      });
+    }
+
+    async function load(){
+      try{
+        const d = await fetchJSON('/api/invoices/arnona?refresh=0');
+        render(d.arnona || []);
+      }catch{
+        document.getElementById('invoices').innerHTML = '<div class="no">تعذّر جلب البيانات.</div>';
+      }
+    }
+
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>
+
+

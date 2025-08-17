@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>فواتير Wolt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{ --wolt-blue:#00AEEF; --ink:#0a2233; --card:#ffffff; --line:#e7eef4; }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0; min-height:100vh; background:var(--wolt-blue);
+      font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif; color:#fff;
+      display:flex; flex-direction:column; align-items:center;
+    }
+    header{width:100%; display:flex; align-items:center; justify-content:center; padding:28px 16px 16px; user-select:none;}
+    .wolt-wordmark{font-family:'Pacifico',system-ui,sans-serif; font-size:56px; color:#fff; letter-spacing:.2px; line-height:1; text-shadow:0 6px 18px rgba(0,0,0,.20);}
+    .container{width:min(980px,96%); background:var(--card); color:var(--ink); border-radius:22px; box-shadow:0 26px 80px rgba(0,0,0,.20); padding:22px 18px; margin:10px 0 28px;}
+    .topbar{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:10px;}
+    .back{background:#e6f7fd; color:#064760; border:1px solid #d1ecf7; border-radius:12px; padding:10px 16px; cursor:pointer; font-weight:700; transition:.15s; box-shadow:0 3px 10px rgba(0,0,0,.06);}
+    .back:hover{transform:translateY(-1px)}
+    h1{margin:0; font-size:22px; color:#064760; font-weight:900; letter-spacing:.3px;}
+    .invoices-list{margin-top:12px;}
+    .invoice{background:#f7fafc; border:1px solid var(--line); border-radius:14px; padding:16px; margin:12px 0; box-shadow:0 6px 24px rgba(0,0,0,.05);}
+    .invoice-title{font-weight:800; color:#4a2f85; margin-bottom:6px; word-break:break-word;}
+    .invoice-details{color:#20313b; font-size:.98em; line-height:1.7;}
+    .invoice-actions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .btn{border:none; border-radius:12px; padding:10px 16px; cursor:pointer; font-weight:800; letter-spacing:.2px; transition:.15s; box-shadow:0 4px 12px rgba(0,0,0,.08);}
+    .btn:active{transform:translateY(1px)}
+    .btn-primary{background:var(--wolt-blue); color:#fff;}
+    .btn-outline{background:#fff; color:#1b2c3a; border:1px solid #cfd8dc;}
+    .btn-link{display:inline-block; text-decoration:none; border:1px solid #cfd8dc; background:#fff; color:#1b2c3a; padding:10px 16px; border-radius:12px; font-weight:800;}
+    .badge{background:#eef; color:#334; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:800;}
+    .no-invoices{color:#b22222; font-weight:900; text-align:center; padding:18px 0;}
+    .error{color:#b22222; font-weight:800}
+
+    /* Modal */
+    #pdfModal{display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999;}
+    #pdfModal .box{background:#fff; width:96%; max-width:980px; height:90vh; margin:3vh auto; border-radius:18px; overflow:hidden; display:flex; flex-direction:column;}
+    #pdfModal .head{padding:12px 16px; border-bottom:1px solid #eef1f4; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+    #pdfTitle{color:#082230} #pdfLoading{padding:12px; color:#082230} #pdfFrame{border:0; width:100%; flex:1; display:none; background:#fff;}
+    #toolbar{padding:10px 12px; border-top:1px solid #eef1f4; display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:#fafafa;}
+    #activeHint{font-size:12px; color:#465a67; margin-inline-start:6px; font-weight:800;}
+    .hidden{display:none!important} .navBtn{background:#fff; color:#1b2c3a; border:1px solid #cfd8dc;} .navBtn b{color:#091e2a;}
+    @media (max-width:700px){ .wolt-wordmark{font-size:44px} .container{padding:16px 10px} .btn,.btn-link{padding:9px 12px} }
+  </style>
+</head>
+<body>
+  <header><div class="wolt-wordmark">Wolt</div></header>
+
+  <div class="container">
+    <div class="topbar">
+      <button class="back" onclick="location.href='index.html'">الصفحة الرئيسية</button>
+      <h1>فواتير Wolt من البريد</h1>
+    </div>
+    <div id="invoices" class="invoices-list"></div>
+  </div>
+
+  <!-- Modal -->
+  <div id="pdfModal">
+    <div class="box">
+      <div class="head">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <strong id="pdfTitle">معاينة الفاتورة</strong>
+          <span id="pdfBadge" class="badge" style="display:none;"></span>
+        </div>
+        <button id="closePdfBtn" class="btn btn-outline" type="button">إغلاق</button>
+      </div>
+
+      <div id="pdfLoading">جارِ التحميل…</div>
+      <iframe id="pdfFrame" title="PDF Preview"></iframe>
+
+      <div id="toolbar">
+        <div>
+          <button id="prevBtn" class="btn navBtn hidden">السابق ← <b id="prevName"></b></button>
+          <button id="nextBtn" class="btn navBtn hidden">التالي → <b id="nextName"></b></button>
+          <span id="activeHint"></span>
+        </div>
+        <div style="margin-inline-start:auto">
+          <a id="downloadPrimary" class="btn-link hidden" href="#" download>تحميل</a>
+          <a id="downloadSecondary" class="btn-link hidden" href="#" download>تحميل</a>
+          <button id="printPrimaryBtn" class="btn btn-outline hidden">طباعة</button>
+          <button id="printSecondaryBtn" class="btn btn-outline hidden">طباعة</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== عام =====
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const TZ = 'Asia/Jerusalem', LOCALE = 'ar-PS';
+
+    function formatDateSmart(inv){
+      const cand = inv.dateIso || inv.date || inv.dateRaw || '';
+      if(!cand) return '-';
+      let d = new Date(cand);
+      if(isNaN(d)) { try{ d = new Date(Date.parse(cand)); }catch{} }
+      if(isNaN(d)) return inv.date || cand;
+      try{
+        return new Intl.DateTimeFormat(LOCALE,{
+          timeZone:TZ, weekday:'long', year:'numeric', month:'long', day:'numeric',
+          hour:'2-digit', minute:'2-digit'
+        }).format(d);
+      }catch{ return d.toLocaleString('ar', { timeZone: TZ }); }
+    }
+
+    async function fetchJSON(url){
+      const r = await fetch(url, { cache: 'no-store' });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+
+    // ✅ من الباكند تبعنا
+    async function fetchAttachments(messageId){
+      const data = await fetchJSON(`/gmail/messages/${messageId}/attachments`);
+      return data.attachments || [];
+    }
+
+    function humanizeFilename(filename=''){
+      let base = filename.trim();
+      base = base.replace(/\.[^.]+$/,'');
+      base = base.replace(/^[\s\-_]*(\d{3,})[\s\-_:]*/,'');
+      base = base.replace(/^[\s\-_]+|[\s\-_]+$/g,'');
+      return base || filename.replace(/\.[^.]+$/,'') || 'PDF';
+    }
+
+    // ===== حالة المودال =====
+    const state = { itemA:null, itemB:null, blobA:null, blobB:null, nameA:'חשבונית', nameB:'דו״ח על תשלומים', order:[], currentIndex:0 };
+    function cleanupBlobs(){ if(state.blobA){URL.revokeObjectURL(state.blobA);state.blobA=null;} if(state.blobB){URL.revokeObjectURL(state.blobB);state.blobB=null;} }
+    function closePdfModal(){ const f=document.getElementById('pdfFrame'); document.getElementById('pdfLoading').style.display='none'; f.src='about:blank'; f.style.display='none'; cleanupBlobs(); state.itemA=state.itemB=null; state.order=[]; state.currentIndex=0; document.getElementById('pdfModal').style.display='none'; }
+    document.getElementById('closePdfBtn').addEventListener('click', closePdfModal);
+    document.getElementById('pdfModal').addEventListener('click', (e)=>{ if(e.target.id==='pdfModal') closePdfModal(); });
+
+    async function ensureBlob(key){
+      const item = key==='A'?state.itemA:state.itemB; if(!item) return;
+      if(key==='A' && !state.blobA){ const res=await fetch(item.downloadUrl, {cache:'no-store'}); const buf=await res.arrayBuffer(); state.blobA=URL.createObjectURL(new Blob([buf],{type:'application/pdf'})); }
+      if(key==='B' && !state.blobB){ const res=await fetch(item.downloadUrl, {cache:'no-store'}); const buf=await res.arrayBuffer(); state.blobB=URL.createObjectURL(new Blob([buf],{type:'application/pdf'})); }
+    }
+    function updateToolbarVisibility(){
+      const hasA=!!state.itemA, hasB=!!state.itemB;
+      const dlA=document.getElementById('downloadPrimary'), dlB=document.getElementById('downloadSecondary');
+      const prA=document.getElementById('printPrimaryBtn'), prB=document.getElementById('printSecondaryBtn');
+      const prevBtn=document.getElementById('prevBtn'), nextBtn=document.getElementById('nextBtn');
+      const prevName=document.getElementById('prevName'), nextName=document.getElementById('nextName');
+
+      if(hasA){ dlA.classList.remove('hidden'); dlA.textContent=`تحميل ${state.nameA}`; dlA.href=state.itemA.downloadUrl; dlA.setAttribute('download', state.itemA.filename || `${state.nameA}.pdf`); prA.classList.remove('hidden'); prA.textContent=`طباعة ${state.nameA}`; } else { dlA.classList.add('hidden'); prA.classList.add('hidden'); }
+      if(hasB){ dlB.classList.remove('hidden'); dlB.textContent=`تحميل ${state.nameB}`; dlB.href=state.itemB.downloadUrl; dlB.setAttribute('download', state.itemB.filename || `${state.nameB}.pdf`); prB.classList.remove('hidden'); prB.textContent=`طباعة ${state.nameB}`; } else { dlB.classList.add('hidden'); prB.classList.add('hidden'); }
+
+      if(state.order.length<=1){ prevBtn.classList.add('hidden'); nextBtn.classList.add('hidden'); }
+      else{
+        prevBtn.classList.remove('hidden'); nextBtn.classList.remove('hidden');
+        const idx=state.currentIndex; const leftKey=state.order[(idx-1+state.order.length)%state.order.length]; const rightKey=state.order[(idx+1)%state.order.length];
+        prevName.textContent=leftKey==='A'?state.nameA:state.nameB; nextName.textContent=rightKey==='A'?state.nameA:state.nameB;
+      }
+      const hint=document.getElementById('activeHint'); const currentKey=state.order[state.currentIndex];
+      hint.textContent = currentKey==='A'?`المعروض الآن: ${state.nameA}`:`المعروض الآن: ${state.nameB}`;
+    }
+    async function showByIndex(i){
+      if(!state.order.length) return;
+      state.currentIndex=Math.max(0,Math.min(i,state.order.length-1));
+      const key=state.order[state.currentIndex]; const frame=document.getElementById('pdfFrame');
+      document.getElementById('pdfLoading').style.display='block'; frame.style.display='none'; frame.src='about:blank';
+      await ensureBlob(key); const blobUrl = key==='A'?state.blobA:state.blobB;
+      frame.onload=()=>{ document.getElementById('pdfLoading').style.display='none'; frame.style.display='block'; };
+      frame.src = blobUrl + '#toolbar=1&navpanes=0&view=fitH';
+      updateToolbarVisibility();
+    }
+    function nextFile(){ if(state.order.length<=1) return; showByIndex((state.currentIndex+1)%state.order.length); }
+    function prevFile(){ if(state.order.length<=1) return; showByIndex((state.currentIndex-1+state.order.length)%state.order.length); }
+    document.getElementById('nextBtn').onclick = nextFile;
+    document.getElementById('prevBtn').onclick = prevFile;
+
+    async function openPdfModal(items, subjectText=''){
+      // على الموبايل: افتح أول ملف مباشرة (inlineUrl)
+      const first = items.item117 || items.item116;
+      if (IS_MOBILE && first?.inlineUrl) {
+        window.open(first.inlineUrl, '_blank'); return;
+      }
+
+      const modal=document.getElementById('pdfModal'); const title=document.getElementById('pdfTitle'); const badge=document.getElementById('pdfBadge');
+      cleanupBlobs(); state.itemA=items.item117||null; state.itemB=items.item116||null;
+      if(state.itemA) state.nameA = humanizeFilename(state.itemA.filename);
+      if(state.itemB) state.nameB = humanizeFilename(state.itemB.filename);
+      state.order=[]; if(state.itemA) state.order.push('A'); if(state.itemB) state.order.push('B'); state.currentIndex=0;
+
+      title.textContent=`معاينة: ${subjectText || state.nameA || state.nameB || 'invoice.pdf'}`;
+      const filesCount=state.order.length; badge.style.display=filesCount>1?'inline-block':'none'; badge.textContent=`${filesCount} ملفات`;
+
+      // طباعة
+      document.getElementById('printPrimaryBtn').onclick = async ()=>{ if(!state.itemA) return; await ensureBlob('A'); const w=window.open(state.blobA,'_blank'); setTimeout(()=>{try{w.print();}catch{}},400); };
+      document.getElementById('printSecondaryBtn').onclick = async ()=>{ if(!state.itemB) return; await ensureBlob('B'); const w=window.open(state.blobB,'_blank'); setTimeout(()=>{try{w.print();}catch{}},400); };
+
+      modal.style.display='flex';
+      updateToolbarVisibility();
+      await showByIndex(0);
+    }
+
+    // ===== بناء بطاقات الفواتير =====
+    async function attachInvoiceButtons(messageId, actionsEl, subjectText){
+      actionsEl.innerHTML='';
+      try{
+        const attachments = await fetchAttachments(messageId);
+        const pdfs = attachments.filter(a => (a.filename||'').toLowerCase().endsWith('.pdf'));
+
+        if(pdfs.length===0){
+          const span=document.createElement('span'); span.className='error'; span.textContent='لا يوجد ملف PDF مرفق'; actionsEl.appendChild(span); return;
+        }
+
+        const item117 = pdfs.find(p => /^117/i.test((p.filename||'').trim())) || null;
+        const item116 = pdfs.find(p => /^116/i.test((p.filename||'').trim())) || null;
+        const name117 = item117 ? humanizeFilename(item117.filename) : null;
+        const name116 = item116 ? humanizeFilename(item116.filename) : null;
+
+        const viewBtn = document.createElement('button');
+        viewBtn.className='btn btn-primary'; viewBtn.type='button';
+        viewBtn.textContent = name117?`عرض ${name117}`:(name116?`عرض ${name116}`:'عرض الفاتورة');
+        viewBtn.onclick = ()=> openPdfModal({ item117, item116 }, subjectText);
+        actionsEl.appendChild(viewBtn);
+
+        if(item117){
+          const a=document.createElement('a');
+          a.className='btn-link'; a.href=item117.downloadUrl; a.setAttribute('download', item117.filename || `${name117||'חשבונית'}.pdf`);
+          a.textContent=`تحميل ${name117||'חשבונית'}`; actionsEl.appendChild(a);
+        }
+        if(item116){
+          const a=document.createElement('a');
+          a.className='btn-link'; a.href=item116.downloadUrl; a.setAttribute('download', item116.filename || `${name116||'דו״ח על תשלומים'}.pdf`);
+          a.textContent=`تحميل ${name116||'דו״ח על תשלומים'}`; actionsEl.appendChild(a);
+        }
+
+        if(pdfs.length>1){ const b=document.createElement('span'); b.className='badge'; b.textContent=`${pdfs.length} ملفات`; actionsEl.appendChild(b); }
+      }catch(e){
+        console.error(e);
+        const span=document.createElement('span'); span.className='error'; span.textContent='تعذّر تحميل المرفقات'; actionsEl.appendChild(span);
+      }
+    }
+
+    function renderWoltInvoices(invoices){
+      const root=document.getElementById('invoices'); root.innerHTML='';
+      if(!invoices.length){ root.innerHTML='<div class="no-invoices">لا توجد فواتير Wolt حالياً.</div>'; return; }
+
+      invoices.forEach(inv=>{
+        const card=document.createElement('div'); card.className='invoice';
+
+        const title=document.createElement('div'); title.className='invoice-title';
+        title.textContent = inv.subject || 'فاتورة Wolt';
+        card.appendChild(title);
+
+        const det=document.createElement('div'); det.className='invoice-details';
+        det.innerHTML = `
+          <b>التاريخ:</b> ${formatDateSmart(inv)}<br>
+          <b>المرسل:</b> ${inv.from || '-'}<br>
+          <b>محتوى مختصر:</b> ${inv.snippet || ''}
+        `;
+        card.appendChild(det);
+
+        const actions=document.createElement('div'); actions.className='invoice-actions'; card.appendChild(actions);
+        root.appendChild(card);
+
+        attachInvoiceButtons(inv.id, actions, inv.subject || '');
+      });
+    }
+
+    async function fetchWoltInvoices(){
+      try{
+        const data = await fetchJSON('/api/invoices/wolt?refresh=0');
+        renderWoltInvoices((data && data.wolt) || []);
+      }catch{
+        document.getElementById('invoices').innerHTML = '<div class="no-invoices">تعذّر جلب الفواتير.</div>';
+      }
+    }
+    fetchWoltInvoices();
+    setInterval(fetchWoltInvoices, 30000);
+  </script>
+</body>
+</html>

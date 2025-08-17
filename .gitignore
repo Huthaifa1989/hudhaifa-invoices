@@ -1,0 +1,12 @@
+﻿.env
+.env.*
+config.env
+credentials.json
+client_secret*.json
+service-account*.json
+secrets/
+secret/
+*.pem
+*.p12
+*.key
+*.crt

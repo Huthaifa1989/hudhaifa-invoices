@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    // السماح بقراءة الفاتورة لصاحبها فقط أو المدير
+    // والكتابة لصاحبها (على حقول محددة) أو المدير
+    match /invoices/{docId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.keys().hasAll(['number','customerName','total','status','createdBy','date'])
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.status in ['paid','pending','canceled'];
+
+      allow update: if isAdmin()
+        || (
+          isSignedIn() &&
+          resource.data.createdBy == request.auth.uid &&
+          // لا تسمح بتغيير createdBy بعد الإنشاء
+          request.resource.data.createdBy == resource.data.createdBy &&
+          // امنع حقول خطرة من التغيير إن أردت
+          request.resource.data.total is number &&
+          request.resource.data.total >= 0 &&
+          request.resource.data.status in ['paid','pending','canceled']
+        );
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // لو المجموعة الحقيقية اسمها hudhaifa_invoices استعمل هذا البلوك بدل السابق:
+    match /hudhaifa_invoices/{docId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.keys().hasAll(['fileName','fileUrl','mimeType','date','source','createdBy'])
+        && request.resource.data.source in ['gmail','drive','manual']
+        && request.resource.data.currency in ['ILS','USD','EUR'];
+
+      allow update: if isAdmin()
+        || (isSignedIn() && resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdBy == resource.data.createdBy);
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // users: اسمح للمستخدم يقرأ/يحدّث مستند حسابه فقط، والمدير يقرأ/يكتب الكل
+    match /users/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow delete: if isAdmin();
+    }
+
+    // settings: القراءة للمسجّلين، والكتابة للمدير فقط
+    match /settings/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

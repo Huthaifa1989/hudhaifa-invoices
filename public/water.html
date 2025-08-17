@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>فواتير الماء</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --navy:#0a2a66;
+      --ring:#e5e7eb;
+      --card:#fff;
+      --muted:#334155;
+      --btn:#059669;
+      --btn-hover:#047857;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:'Cairo',sans-serif; min-height:100vh; display:flex; flex-direction:column;
+      /* خلفية مع فقاعات ماء */
+      background:
+        radial-gradient(18px 18px at 15% 12%, rgba(255,255,255,.65) 30%, rgba(255,255,255,0) 31%) ,
+        radial-gradient(26px 26px at 70% 20%, rgba(255,255,255,.50) 30%, rgba(255,255,255,0) 31%) ,
+        radial-gradient(14px 14px at 40% 36%, rgba(255,255,255,.50) 30%, rgba(255,255,255,0) 31%) ,
+        radial-gradient(22px 22px at 86% 68%, rgba(255,255,255,.45) 30%, rgba(255,255,255,0) 31%) ,
+        radial-gradient(18px 18px at 22% 82%, rgba(255,255,255,.45) 30%, rgba(255,255,255,0) 31%),
+        linear-gradient(to bottom right, #e6f7ff, #d0ebff 45%, #f6fbff);
+      background-attachment: fixed;
+    }
+    header{ text-align:center; padding:16px 12px 8px; }
+    .home-link{
+      display:inline-block; margin-bottom:10px; padding:6px 14px; font-weight:800; border-radius:10px;
+      border:1px solid var(--navy); color:#fff; background:var(--navy); text-decoration:none;
+    }
+    header img{
+      max-height:90px; display:block; margin:0 auto 6px; background:transparent !important;
+    }
+    header h2{ margin:0; font-weight:900; font-size:22px; color:var(--navy); }
+    .container{
+      flex:1; width:min(960px,96%); margin:0 auto 18px; background:var(--card);
+      border:1px solid var(--ring); border-radius:20px; box-shadow:0 8px 24px rgba(0,0,0,.08); padding:20px;
+    }
+    h1{ margin:0 0 12px; font-size:20px; font-weight:900; color:#0b2130; text-align:center; }
+
+    .invoice{ background:#f8fafc; border:1px solid var(--ring); border-radius:14px; padding:14px; margin:12px 0; }
+    .invoice-title{ font-weight:900; color:#124e3f; margin-bottom:4px; word-break:break-word; }
+    .invoice-det{ color:var(--muted); font-size:.95rem; line-height:1.7; }
+    .actions{ margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn{
+      border:1px solid var(--ring); background:#fff; border-radius:12px; padding:9px 14px; cursor:pointer; font-weight:800;
+      transition:.15s;
+    }
+    .btn.primary{ background:var(--btn); color:#fff; border-color:var(--btn); }
+    .btn.primary:hover{ background:var(--btn-hover); }
+    .btn.link{ text-decoration:none; display:inline-block; }
+    .no{ color:#b22222; font-weight:900; text-align:center; padding:18px 0; }
+    .error{ color:#b22222; font-weight:800; }
+
+    /* Modal */
+    #pdfModal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999; }
+    #pdfModal .box{
+      background:#fff; width:96%; max-width:980px; height:90vh; margin:3vh auto; border-radius:18px;
+      overflow:hidden; display:flex; flex-direction:column;
+    }
+    #pdfModal .head{
+      padding:12px 16px; border-bottom:1px solid #eef1f4; display:flex; align-items:center; justify-content:space-between;
+    }
+    #pdfTitle{ color:#082230 }
+    #pdfLoading{ padding:12px; color:#082230 }
+    #pdfFrame{ border:0; width:100%; flex:1; display:none; background:#fff; }
+    #toolbar{ padding:10px 12px; border-top:1px solid #eef1f4; display:flex; gap:10px; align-items:center; background:#fafafa; }
+    .hidden{ display:none !important; }
+
+    @media (max-width:700px){
+      header img{ max-height:76px; }
+      .container{ padding:16px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="home-link">الصفحة الرئيسية</a>
+    <img src="water-logo.png" alt="شعار شركة المياه" />
+    <h2>شركة مياه جيحون</h2>
+  </header>
+
+  <div class="container">
+    <h1>فواتير الماء</h1>
+    <div id="invoices"></div>
+  </div>
+
+  <!-- Modal -->
+  <div id="pdfModal">
+    <div class="box">
+      <div class="head">
+        <strong id="pdfTitle">معاينة الفاتورة</strong>
+        <button id="closePdfBtn" class="btn">إغلاق</button>
+      </div>
+      <div id="pdfLoading">جارِ التحميل…</div>
+      <iframe id="pdfFrame" title="PDF Preview"></iframe>
+      <div id="toolbar">
+        <a id="downloadBtn" class="btn hidden" href="#" download>تحميل</a>
+        <button id="printBtn" class="btn hidden">طباعة</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== إعدادات عامة
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const TZ = 'Asia/Jerusalem', LOCALE = 'ar-PS';
+
+    function formatDateSmart(inv){
+      const cand = inv.dateIso || inv.date || inv.dateRaw || '';
+      if(!cand) return '-';
+      let d = new Date(cand);
+      if(isNaN(d)) { try{ d = new Date(Date.parse(cand)); }catch{} }
+      if(isNaN(d)) return inv.date || cand;
+      try{
+        return new Intl.DateTimeFormat(LOCALE,{
+          timeZone:TZ, weekday:'long', year:'numeric', month:'long', day:'numeric',
+          hour:'2-digit', minute:'2-digit'
+        }).format(d);
+      }catch{ return d.toLocaleString('ar', { timeZone: TZ }); }
+    }
+
+    async function fetchJSON(u){
+      const r = await fetch(u, { cache: 'no-store' });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+
+    // جلب مرفقات Gmail من الباكند الصحيح
+    async function fetchAttachments(messageId){
+      const data = await fetchJSON(`/gmail/messages/${messageId}/attachments`);
+      return data.attachments || [];
+    }
+
+    // ===== مودال المعاينة على الديسكتوب / فتح مباشر على الموبايل
+    const Modal = { blob:null, name:null };
+    function closeModal(){
+      const f=document.getElementById('pdfFrame');
+      f.src='about:blank';
+      document.getElementById('pdfModal').style.display='none';
+      if(Modal.blob){ URL.revokeObjectURL(Modal.blob); Modal.blob=null; }
+    }
+    document.getElementById('closePdfBtn').onclick = closeModal;
+
+    async function openInline(item){
+      // على الموبايل: افتح inlineUrl مباشرة (أفضل دعم)
+      if (IS_MOBILE && item.inlineUrl) {
+        window.open(item.inlineUrl, '_blank');
+        return;
+      }
+      // ديسكتوب: حمّل الملف كبافر واعرضه داخل iframe للحفاظ على الختم/الدقة
+      const modal=document.getElementById('pdfModal');
+      const frame=document.getElementById('pdfFrame');
+      const loading=document.getElementById('pdfLoading');
+      const dl=document.getElementById('downloadBtn');
+      const pr=document.getElementById('printBtn');
+
+      dl.classList.add('hidden'); pr.classList.add('hidden');
+      frame.style.display='none'; loading.style.display='block';
+
+      const res=await fetch(item.downloadUrl, { cache:'no-store' });
+      const buf=await res.arrayBuffer();
+      if(Modal.blob) URL.revokeObjectURL(Modal.blob);
+      Modal.blob=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));
+      Modal.name=item.filename||'invoice.pdf';
+
+      frame.onload=()=>{ loading.style.display='none'; frame.style.display='block'; dl.classList.remove('hidden'); pr.classList.remove('hidden'); };
+      frame.src = Modal.blob + '#toolbar=1&navpanes=0&view=fitH';
+
+      dl.href = item.downloadUrl;
+      dl.setAttribute('download', Modal.name);
+      pr.onclick = ()=>{ const w=window.open(Modal.blob,'_blank'); setTimeout(()=>{ try{ w.print(); }catch{} }, 500); };
+
+      modal.style.display='flex';
+    }
+
+    // ===== عرض القائمة
+    function render(list){
+      const root=document.getElementById('invoices'); root.innerHTML='';
+      if(!list.length){ root.innerHTML='<div class="no">لا توجد فواتير حالياً.</div>'; return; }
+
+      list.forEach(inv=>{
+        const card=document.createElement('div'); card.className='invoice';
+
+        const title=document.createElement('div'); title.className='invoice-title';
+        title.textContent = inv.subject || 'فاتورة ماء';
+        card.appendChild(title);
+
+        const det=document.createElement('div'); det.className='invoice-det';
+        det.innerHTML = `
+          <b>التاريخ:</b> ${formatDateSmart(inv)}<br>
+          <b>المرسل:</b> ${inv.from || '-'}<br>
+          <b>مختصر:</b> ${inv.snippet || ''}
+        `;
+        card.appendChild(det);
+
+        const actions=document.createElement('div'); actions.className='actions';
+        const view=document.createElement('button'); view.className='btn primary'; view.textContent='عرض المرفقات';
+        view.onclick = async ()=>{
+          try{
+            const atts = await fetchAttachments(inv.id);
+            const pdf = atts.find(a => (a.filename||'').toLowerCase().endsWith('.pdf'));
+            if(!pdf){ alert('لا يوجد PDF مرفق'); return; }
+            openInline(pdf);
+          }catch{
+            const err = document.createElement('span'); err.className='error'; err.textContent='تعذّر تحميل المرفقات';
+            actions.appendChild(err);
+          }
+        };
+        actions.appendChild(view);
+        card.appendChild(actions);
+
+        root.appendChild(card);
+      });
+    }
+
+    async function load(){
+      try{
+        const data = await fetchJSON('/api/invoices/water?refresh=0');
+        render(data.water || []);
+      }catch{
+        document.getElementById('invoices').innerHTML = '<div class="no">تعذّر جلب البيانات.</div>';
+      }
+    }
+
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>

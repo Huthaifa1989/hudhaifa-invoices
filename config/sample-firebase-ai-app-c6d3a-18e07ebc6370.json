@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "sample-firebase-ai-app-c6d3a",
+  "private_key_id": "18e07ebc6370642b665c361de709f5bab42324e4",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDxPjOq+3Ya4QWR\nrBqCBqZq2caNhGmQV6Js1ssInkyZbiIS59Z+2LJsGHOQ2OgfxWtovwMFD6TXq0F+\nMz4n65jBb17OI1RpRLfHgjCo7bmvieEeWMZL4C8Hg0Kg5R+z7Cs9A8NlcyUvJUIi\nT0grSn9nb37/c2BmEDuODCcGlLV6DWWyeSMkWId3As+IgNqeXMNEWiIBw9y9X1Js\niimBPgR+7GoQUNwDrwDo6sV0ikTUQ3ZW/zIJeMcYJWwaLcm18Z9KFra9lbpr/wIY\ncKH50e3R9N7kYfgQ5pAvgAHbM+WkLNFnmf0DKFvxkzW2h3vELMf4+6SbUy2DCkZG\n5KgNERfPAgMBAAECggEAPrF7DPLHmSmkYFyZEPR4eCk7S9i+9FeJ6v4RCp7U6kSw\nTzh3ykQ3bhcWpWxxOpx8Et8dAkoz/SZQ4WKgwxAbhR2Txj9xNuA4YH1JdwU8rc1H\ntzK76ckLf8jRXm3dBM2Z2QPq2ikH304v9ymiaDm2jWNw3iMWSL/sMjifRbsMxHhI\nq2gPGjRZT9wgmt7JqjqeAbXsdSHgAp7/M/GBig5Kft+HruLyF6HmN8L6TBf24wB/\nKpxYTVMMLHAuWOwSGaqWaDFFTqwd80gZGnTqWBwb0ItJYj0N9J9tJwdZBNtL2ioo\n3XLNcI2OGtkgVfSOyKBVP2/mrGD43zvg/XkHJdlv/QKBgQD6ctjXyc81zwCAggTS\nvSz/OzhaDMs5Ryal9IV9Wvz/agI0yoagnV09gE2WFSo26v9y2tS9Qtld4pL3ZSXb\n91QnEPXTaf31ICrTM5o6uGwo57j8HuIkb9f70Vmek6jZZXRW7qTLl8/95G1kw3HX\ncoTVP0JAzKTPFitOul/epS4BAwKBgQD2lx41a2T1dAKh5CAUChi+Bp9x6zYNjOsE\n0l+xWWZANBx8YL0SnpaEaVM1kHKJA+6wEavWKLO5sVyiGWEEVSPUk6ZbAvH/8OnM\nqHzlmv2H0b1LyuGfbnEiLZuAO8qtpe48ecJpn06tdDRALXGipdPmjclSL9TloDKt\nufyzt8xGRQKBgFSlWFCmbpgbHGpSh1rKgVjKJSOaS11ShOd2G1/gzr1skM5S3OmQ\nBiFxKcfd42SoTCn/eAN3govOtilTUFZl41VI0CziF+kvNAop2KicCEJS/xyHO5th\nCbicaxPDiD/hoE55Xc1JxAxlleuGewV8ORTxymyoPdOYBI8ZQqm3XjMNAoGAWQ2y\nRzCFwW8oFDdCrnoG/Xl+07FSUAp4RcGD9ZSHrOAk+XYmUjcbvK4c8tc7xee5p7R6\nDlmcro8zGQd5Vgs5aWf5SB0EMJ5ckSC4GmOi9A33Aww990n3aZR2+BSf2Z53Lzf5\n0hNKYrH4vMSsqUSiBj1mW1wS0urL4pmsfWr/RtECgYB1vrz/805poPb0IOvZQkbY\n0i9yJx2XcNiPeGsoid3b19AdpJhFzz4fe9IYWqTazWcRJ/a7ExRRdUkDR+uNDyt1\nmmrfbM4MG3GBuh7p5vc+9yPm51QNjmF/yyasZ/JEtK4KF7qoRn06XiQujDxxRWe8\nJ2XdIAmo++A660isCHoc2A==\n-----END PRIVATE KEY-----\n",
+  "client_email": "hudhaifa-invoices-admin@sample-firebase-ai-app-c6d3a.iam.gserviceaccount.com",
+  "client_id": "116446902914589847259",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hudhaifa-invoices-admin%40sample-firebase-ai-app-c6d3a.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
