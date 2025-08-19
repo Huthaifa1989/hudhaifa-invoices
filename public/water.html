@@ -79,7 +79,7 @@
 </head>
 <body>
   <header>
-    <a href="index.html" class="home-link">الصفحة الرئيسية</a>
+    <a href="/" class="home-link">الصفحة الرئيسية</a>
     <img src="water-logo.png" alt="شعار شركة المياه" />
     <h2>شركة مياه جيحون</h2>
   </header>
@@ -201,15 +201,8 @@
         const actions=document.createElement('div'); actions.className='actions';
         const view=document.createElement('button'); view.className='btn primary'; view.textContent='عرض المرفقات';
         view.onclick = async ()=>{
-          try{
-            const atts = await fetchAttachments(inv.id);
-            const pdf = atts.find(a => (a.filename||'').toLowerCase().endsWith('.pdf'));
-            if(!pdf){ alert('لا يوجد PDF مرفق'); return; }
-            openInline(pdf);
-          }catch{
-            const err = document.createElement('span'); err.className='error'; err.textContent='تعذّر تحميل المرفقات';
-            actions.appendChild(err);
-          }
+          // Since we're using cached data without attachments, show a simple message
+          alert(`تفاصيل الفاتورة:\n\nالموضوع: ${inv.subject || 'فاتورة ماء'}\n\nمعرف الرسالة: ${inv.id}\n\nالبيانات من الذاكرة المؤقتة - المرفقات غير متوفرة حالياً`);
         };
         actions.appendChild(view);
         card.appendChild(actions);
@@ -220,8 +213,14 @@
 
     async function load(){
       try{
-        const data = await fetchJSON('/api/invoices/water?refresh=0');
-        render((data && data.data && data.data.gmail && data.data.gmail.water) || []);
+        const data = await fetchJSON('/api/invoices/cached');
+        // Extract water invoices from the cached data
+        const waterData = data && data.data && data.data.water;
+        if (waterData && waterData.data) {
+          render(waterData.data);
+        } else {
+          render([]);
+        }
       }catch{
         document.getElementById('invoices').innerHTML = '<div class="no">تعذّر جلب البيانات.</div>';
       }

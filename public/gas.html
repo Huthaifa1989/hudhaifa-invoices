@@ -66,7 +66,7 @@
 <body>
   <div class="container">
     <div class="brand"><h2 class="txt">yell<span class="emoji">😜</span>w</h2></div>
-    <button class="back" onclick="location.href='index.html'">الصفحة الرئيسية</button>
+    <button class="back" onclick="location.href='/'">الصفحة الرئيسية</button>
     <h1>فواتير البنزين</h1>
     <div id="invoices" class="invoices-list"></div>
   </div>
@@ -192,10 +192,12 @@
         // تعديل: استخدم ID مجلد البنزين في درايف
         // يجب أن يكون لديك endpoint backend يرجع ملفات هذا المجلد
         // مثال: /api/drive/gas أو /api/drive/folder?id=1yHrqkmMP0brzJ4iwnEIz22DejTHaF7vy
-        const data = await fetch('/api/invoices/fuel?refresh=0', { cache: 'no-store' });
+        const data = await fetch('/api/invoices/cached', { cache: 'no-store' });
         if(!data.ok) throw new Error('HTTP '+data.status);
         const response = await data.json();
-        const files = (response && response.invoices) || [];
+        // Extract fuel invoices from the cached data
+        const fuelData = response && response.data && response.data.fuel;
+        const files = (fuelData && fuelData.data) || [];
 
         renderGasInvoices(files);
       }catch{

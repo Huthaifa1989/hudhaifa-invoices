@@ -59,7 +59,7 @@
 </head>
 <body>
   <header>
-    <a href="index.html" class="home-link">الصفحة الرئيسية</a>
+    <a href="/" class="home-link">الصفحة الرئيسية</a>
     <h2>بلدية القدس – الأرنونا</h2>
     <div class="sub">عرض فواتير الأرنونا ومرفقاتها من البريد</div>
   </header>
@@ -192,15 +192,8 @@
         const actions=document.createElement('div'); actions.className='actions';
         const btn=document.createElement('button'); btn.className='btn primary'; btn.textContent='عرض المرفقات';
         btn.onclick = async ()=>{
-          try{
-            const atts = await fetchAttachments(inv.id);
-            const pdf = atts.find(a => (a.filename||'').toLowerCase().endsWith('.pdf'));
-            if(!pdf){ alert('لا يوجد PDF مرفق'); return; }
-            openInline(pdf);
-          }catch{
-            const err=document.createElement('span'); err.className='error'; err.textContent='تعذّر تحميل المرفقات';
-            actions.appendChild(err);
-          }
+          // Since we're using cached data without attachments, show a simple message
+          alert(`تفاصيل الفاتورة:\n\nالموضوع: ${inv.subject || 'مستند أرنونا'}\n\nمعرف الرسالة: ${inv.id}\n\nالبيانات من الذاكرة المؤقتة - المرفقات غير متوفرة حالياً`);
         };
         actions.appendChild(btn);
         card.appendChild(actions);
@@ -211,8 +204,14 @@
 
     async function load(){
       try{
-        const d = await fetchJSON('/api/invoices/arnona?refresh=0');
-        render((d && d.invoices) || []);
+        const d = await fetchJSON('/api/invoices/cached');
+        // Extract arnona invoices from the cached data
+        const arnonaData = d && d.data && d.data.arnona;
+        if (arnonaData && arnonaData.data) {
+          render(arnonaData.data);
+        } else {
+          render([]);
+        }
       }catch{
         document.getElementById('invoices').innerHTML = '<div class="no">تعذّر جلب البيانات.</div>';
       }

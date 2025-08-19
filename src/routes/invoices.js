@@ -301,4 +301,60 @@ router.get('/sync/status', apiLimiter, asyncHandler(async (req, res) => {
   });
 }));
 
+// Get cached invoices (fallback when Firebase is not available)
+router.get('/cached', apiLimiter, asyncHandler(async (req, res) => {
+  logger.info('Get cached invoices requested', { requestId: req.id });
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const cacheFiles = [
+      { name: 'wolt', file: 'wolt-invoices-cache.json' },
+      { name: 'water', file: 'water-invoices-cache.json' },
+      { name: 'electric', file: 'electric-invoices-cache.json' },
+      { name: 'arnona', file: 'arnona-invoices-cache.json' },
+      { name: 'fuel', file: 'fuel-invoices-cache.json' },
+      { name: 'manual', file: 'manual-invoices-cache.json' }
+    ];
+
+    const result = {};
+    
+    for (const cache of cacheFiles) {
+      const filePath = path.join(process.cwd(), cache.file);
+      if (fs.existsSync(filePath)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          result[cache.name] = {
+            count: Array.isArray(data) ? data.length : 0,
+            data: data
+          };
+        } catch (error) {
+          logger.error(`Failed to read cache file ${cache.file}`, { error: error.message });
+          result[cache.name] = { count: 0, data: [], error: error.message };
+        }
+      } else {
+        result[cache.name] = { count: 0, data: [], error: 'File not found' };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+      source: 'cache-files'
+    });
+  } catch (error) {
+    logger.error('Failed to get cached invoices', { error: error.message });
+    res.status(500).json({
+      error: {
+        code: 'CACHE_ERROR',
+        message: 'Failed to read cache files',
+        details: error.message,
+        requestId: req.id
+      }
+    });
+  }
+}));
+
 module.exports = router;

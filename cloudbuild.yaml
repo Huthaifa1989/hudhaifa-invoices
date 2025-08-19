@@ -1,0 +1,40 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/hudhaifa-invoices-v2:latest', '.']
+  
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/hudhaifa-invoices-v2:latest']
+  
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'hudhaifa-invoices-v2'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/hudhaifa-invoices-v2:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '300'
+      - '--concurrency'
+      - '80'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '0'
+      - '--set-env-vars'
+      - 'CLIENT_ID=279579602372-0q8jnig84c5vvsjv5ikeke87192bnrjv.apps.googleusercontent.com,CLIENT_SECRET=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,REDIRECT_URI=https://hudhaifa-invoices-v2-sample-firebase-ai-app-c6d3a.us-central1.run.app/oauth2callback,REFRESH_TOKEN=1//04CwOwcB9r8FmCgYIARAAGAQSNwF-L9Irlcqq2O1BJSszjPouSHA7afB0VjMDcSULD3hPm2GFpLXcdOT-Cu-O8mgvHLVQovWcVyo,FUEL_FOLDER_ID=1yHrqkmMP0brzJ4iwnEIz22DejTHaF7vy,FIREBASE_PROJECT_ID=sample-firebase-ai-app-c6d3a,COOLDOWN_SEC=180,MAX_DB_DOCS=5000,NODE_ENV=production,LOG_LEVEL=info'
+
+images:
+  - 'gcr.io/$PROJECT_ID/hudhaifa-invoices-v2:latest'
