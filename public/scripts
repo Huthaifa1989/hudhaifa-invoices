@@ -1,0 +1,53 @@
+/**
+ * سكربت لنقل جميع الفواتير من hudhaifa_invoices إلى invoices
+ * يشمل الفواتير القديمة والجديدة
+ */
+
+const admin = require("firebase-admin");
+const path = require("path");
+
+// 🔹 تأكد أن لديك ملف المفتاح الخاص بخدمة Firebase (JSON)
+const serviceAccount = require(path.join(__dirname, "../firebase-admin-key.json"));
+
+// تهيئة Firebase Admin
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
+
+async function migrateInvoices() {
+  console.log("🔄 نقل البيانات من hudhaifa_invoices إلى invoices...");
+
+  try {
+    const oldCollection = db.collection("hudhaifa_invoices");
+    const newCollection = db.collection("invoices");
+
+    const snapshot = await oldCollection.get();
+
+    if (snapshot.empty) {
+      console.log("⚠️ لا توجد بيانات في hudhaifa_invoices للنقل.");
+      return;
+    }
+
+    let count = 0;
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+
+      // الحفاظ على نفس ID الفاتورة في المجموعة الجديدة
+      await newCollection.doc(doc.id).set(data, { merge: true });
+
+      count++;
+      console.log(`✅ تم نقل الفاتورة: ${doc.id}`);
+    }
+
+    console.log(`🎯 تم نقل ${count} فاتورة بنجاح إلى invoices.`);
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ خطأ أثناء النقل:", error);
+    process.exit(1);
+  }
+}
+
+migrateInvoices();
+ؤمش

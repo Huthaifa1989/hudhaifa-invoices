@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Invoice Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .invoice { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .loading { color: blue; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Simple Invoice Test</h1>
+    <p>This page will test the API and show your invoice data.</p>
+    
+    <button onclick="testAPI()">Test API</button>
+    <button onclick="loadWolt()">Load Wolt Invoices</button>
+    <button onclick="loadArnona()">Load Arnona Invoices</button>
+    <button onclick="loadAll()">Load All Invoices</button>
+    
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            document.getElementById('status').innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function showResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3>Results:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+
+        async function testAPI() {
+            showStatus('Testing API...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/health');
+                const data = await response.json();
+                showStatus('API is working!', 'success');
+                showResults(data);
+            } catch (error) {
+                showStatus('API Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadWolt() {
+            showStatus('Loading Wolt invoices...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/api/invoices/wolt');
+                const data = await response.json();
+                showStatus(`Loaded ${data.invoices ? data.invoices.length : 0} Wolt invoices`, 'success');
+                showResults(data);
+            } catch (error) {
+                showStatus('Error loading Wolt: ' + error.message, 'error');
+            }
+        }
+
+        async function loadArnona() {
+            showStatus('Loading Arnona invoices...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/api/invoices/arnona');
+                const data = await response.json();
+                showStatus(`Loaded ${data.invoices ? data.invoices.length : 0} Arnona invoices`, 'success');
+                showResults(data);
+            } catch (error) {
+                showStatus('Error loading Arnona: ' + error.message, 'error');
+            }
+        }
+
+        async function loadAll() {
+            showStatus('Loading all invoices...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/api/invoices/all');
+                const data = await response.json();
+                showStatus('Loaded all invoices', 'success');
+                showResults(data);
+            } catch (error) {
+                showStatus('Error loading all: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-test on page load
+        window.onload = function() {
+            showStatus('Page loaded. Click a button to test the API.', 'info');
+        };
+    </script>
+</body>
+</html>

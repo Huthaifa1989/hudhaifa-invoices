@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hudhaifa Invoices - API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: #00AEEF;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+        }
+        .invoice {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .invoice h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .invoice p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .badge {
+            background: #00AEEF;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        button {
+            background: #00AEEF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0098d1;
+        }
+        #loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Hudhaifa Invoices v2.0 - API Test</h1>
+        <p>Local Development Server Connected to Production Database</p>
+    </div>
+
+    <div id="status" class="status">
+        <h3>✅ Server Status</h3>
+        <p><strong>URL:</strong> http://localhost:8080</p>
+        <p><strong>Database:</strong> sample-firebase-ai-app-c6d3a (Production)</p>
+        <p><strong>Status:</strong> <span id="serverStatus">Checking...</span></p>
+    </div>
+
+    <div>
+        <button onclick="loadAllInvoices()">Load All Invoices</button>
+        <button onclick="loadWoltInvoices()">Load Wolt Invoices</button>
+        <button onclick="loadStats()">Load Statistics</button>
+        <button onclick="testHealth()">Test Health</button>
+    </div>
+
+    <div id="loading" style="display: none;">Loading...</div>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:8080/health');
+                const data = await response.json();
+                document.getElementById('serverStatus').innerHTML = 
+                    `✅ Running (${data.uptime.toFixed(1)}s uptime)`;
+                showResults('Health Check', data);
+            } catch (error) {
+                document.getElementById('serverStatus').innerHTML = '❌ Error';
+                showResults('Health Check Error', { error: error.message });
+            }
+        }
+
+        async function loadAllInvoices() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/invoices/all`);
+                const data = await response.json();
+                showResults('All Invoices', data);
+            } catch (error) {
+                showResults('Error Loading All Invoices', { error: error.message });
+            }
+        }
+
+        async function loadWoltInvoices() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/invoices/wolt`);
+                const data = await response.json();
+                showResults('Wolt Invoices', data);
+            } catch (error) {
+                showResults('Error Loading Wolt Invoices', { error: error.message });
+            }
+        }
+
+        async function loadStats() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/invoices/stats`);
+                const data = await response.json();
+                showResults('Invoice Statistics', data);
+            } catch (error) {
+                showResults('Error Loading Statistics', { error: error.message });
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function showResults(title, data) {
+            document.getElementById('loading').style.display = 'none';
+            
+            let html = `<h2>${title}</h2>`;
+            
+            if (data.success && data.data) {
+                // Handle structured data
+                if (data.data.gmail && data.data.gmail.wolt) {
+                    html += `<h3>Wolt Invoices (${data.data.gmail.wolt.length})</h3>`;
+                    data.data.gmail.wolt.slice(0, 5).forEach(invoice => {
+                        html += createInvoiceHTML(invoice);
+                    });
+                    if (data.data.gmail.wolt.length > 5) {
+                        html += `<p><em>... and ${data.data.gmail.wolt.length - 5} more invoices</em></p>`;
+                    }
+                }
+                
+                if (data.data.gmail && data.data.gmail.arnona) {
+                    html += `<h3>Arnona Invoices (${data.data.gmail.arnona.length})</h3>`;
+                    data.data.gmail.arnona.forEach(invoice => {
+                        html += createInvoiceHTML(invoice);
+                    });
+                }
+            } else if (data.invoices) {
+                // Handle direct invoice array
+                html += `<h3>Invoices (${data.invoices.length})</h3>`;
+                data.invoices.slice(0, 5).forEach(invoice => {
+                    html += createInvoiceHTML(invoice);
+                });
+                if (data.invoices.length > 5) {
+                    html += `<p><em>... and ${data.invoices.length - 5} more invoices</em></p>`;
+                }
+            } else {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function createInvoiceHTML(invoice) {
+            return `
+                <div class="invoice">
+                    <h3>${invoice.subject || 'No Subject'} <span class="badge">${invoice.type || 'unknown'}</span></h3>
+                    <p><strong>From:</strong> ${invoice.from || 'Unknown'}</p>
+                    <p><strong>Date:</strong> ${invoice.date || 'Unknown'}</p>
+                    <p><strong>Snippet:</strong> ${(invoice.snippet || '').substring(0, 100)}...</p>
+                </div>
+            `;
+        }
+
+        // Test health on page load
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>

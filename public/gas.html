@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>فواتير البنزين</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --yellow-hi:#ffeb3b; --yellow:#fdd835; --yellow-lo:#f9a825;
+      --brand-red:#d32f2f; --ring:#e5e7eb; --card:#fff;
+      --btn:#ffca28; --btn-hover:#ffb300; --muted:#64748b;
+    }
+    body{
+      margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:'Cairo','Segoe UI',Tahoma,Verdana,sans-serif;
+      background:linear-gradient(180deg,var(--yellow-hi) 0%,var(--yellow) 45%,var(--yellow-lo) 100%);
+    }
+    .container{
+      background:rgba(255,255,255,.98); width:min(980px,96vw);
+      padding:36px 14px 18px; border-radius:22px; border:1px solid var(--ring);
+      box-shadow:0 12px 40px rgba(0,0,0,.10); position:relative;
+    }
+    .brand{ position:absolute; top:-96px; inset-inline:0; text-align:center; user-select:none; }
+    .brand .txt{ margin:0; font-size:72px; line-height:1; font-weight:900; letter-spacing:.5px; color:var(--brand-red); }
+    .brand .txt .emoji{ font-size:1em; vertical-align:-6px; }
+    .back{
+      position:absolute; top:12px; inset-inline-start:12px; background:#fff; color:#111; border:1px solid var(--ring);
+      border-radius:10px; padding:8px 12px; cursor:pointer;
+    }
+    h1{ margin:0 0 14px; text-align:center; color:#111827; font-size:1.25rem; font-weight:800; }
+    .invoices-list{ display:grid; gap:12px; margin-top:8px; }
+    .invoice{ background:var(--card); border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow:0 4px 14px rgba(0,0,0,.06); }
+    .invoice-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+    .invoice-title{ font-weight:800; color:#374151; font-size:1.05rem; word-break:break-word; }
+    .badge{ background:#f3f4f6; border:1px solid var(--ring); padding:3px 10px; border-radius:999px; font-size:.82rem; }
+    .invoice-det{ color:#111827; font-size:.95rem; line-height:1.6; margin-bottom:8px; }
+    .actions{ display:flex; flex-wrap:wrap; gap:8px; }
+    .btn{ border:1px solid var(--ring); background:#fff; color:#111; border-radius:10px; padding:8px 14px; cursor:pointer; font-size:.95rem; transition:.2s; }
+    .btn.primary{ background:var(--btn); } .btn.primary:hover{ background:var(--btn-hover); }
+    .btn.linklike{ text-decoration:none; display:inline-block; }
+    .no-invoices{ color:#b91c1c; font-weight:800; text-align:center; margin-top:20px; }
+
+    /* Modal (ديسكتوب) */
+    #pdfModal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; }
+    #pdfModal .box{
+      background:#111827; color:#fff; width:min(1000px,96vw); height:min(92vh,1000px);
+      margin:3vh auto; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; border:1px solid #374151;
+    }
+    #pdfModal .top{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:#0f172a; }
+    #pdfTitle{ font-weight:800; font-size:1rem; }
+    #viewerWrap{ position:relative; flex:1; background:#1f2937; }
+    #loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#e5e7eb; }
+    #pdfFrame{ border:0; width:100%; height:100%; display:none; background:#1f2937; }
+    #toolbar{ display:flex; gap:8px; padding:8px 12px; background:#0f172a; border-top:1px solid #334155; }
+    .muted{ color:#9ca3af; }
+
+    @media (max-width:700px){
+      .brand .txt{ font-size:56px; }
+      .container{ padding:24px 8px 10px; border-radius:18px; }
+      .invoice-title{ font-size:1rem; }
+      .btn{ padding:8px 12px; }
+      #pdfModal .box{ width:96vw; height:90vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="brand"><h2 class="txt">yell<span class="emoji">😜</span>w</h2></div>
+    <button class="back" onclick="location.href='index.html'">الصفحة الرئيسية</button>
+    <h1>فواتير البنزين</h1>
+    <div id="invoices" class="invoices-list"></div>
+  </div>
+
+  <!-- Modal (يُستخدم على الديسكتوب) -->
+  <div id="pdfModal" onclick="closeModal()">
+    <div class="box" onclick="event.stopPropagation()">
+      <div class="top">
+        <strong id="pdfTitle">معاينة</strong>
+        <button class="btn" onclick="closeModal()">إغلاق</button>
+      </div>
+      <div id="viewerWrap">
+        <div id="loading">جارِ التحميل…</div>
+        <iframe id="pdfFrame" title="Preview"></iframe>
+      </div>
+      <div id="toolbar">
+        <a id="dlBtn" class="btn linklike primary" href="#" download target="_self" rel="noopener">تنزيل</a>
+        <button id="printBtn" class="btn" type="button">طباعة</button>
+        <span class="muted" style="margin-inline-start:auto;">المعاينة داخل الصفحة.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== إعدادات عامة
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const TZ = 'Asia/Jerusalem', LOCALE = 'ar-PS';
+
+    function formatDateLocal(iso){
+      if(!iso) return 'غير محدد';
+      let d = new Date(iso);
+      if(isNaN(d)) { try{ d = new Date(Date.parse(iso)); }catch{} }
+      if(isNaN(d)) return iso;
+      try{
+        return new Intl.DateTimeFormat(LOCALE,{
+          timeZone:TZ, year:'numeric', month:'long', day:'numeric'
+        }).format(d);
+      }catch{ return d.toLocaleDateString('ar', { timeZone: TZ }); }
+    }
+
+    function prettyLabelFromName(name=''){
+      let base = name.replace(/\.[^/.]+$/,'');
+      if(/^\s*[\d_\- ]+\s*$/.test(base)) return base;
+      base = base
+        .replace(/^[\s_\-]*\d+[\s_\-]*/,'')   // بداية
+        .replace(/[\s_\-]*\d+[\s_\-]*$/,'')   // نهاية
+        .replace(/[_]+/g,' ')
+        .replace(/\s{2,}/g,' ')
+        .trim();
+      return base || name.replace(/\.[^/.]+$/,'');
+    }
+
+    // Backend routes (كلها عبر الباكند)
+    const INLINE   = id => `/drive/files/${id}/inline`;
+    const DOWNLOAD = id => `/drive/files/${id}/download`;
+
+    // ===== Modal state (Desktop)
+    const state = { id:null, name:null, autoPrint:false };
+    const modal   = document.getElementById('pdfModal');
+    const frame   = document.getElementById('pdfFrame');
+    const loader  = document.getElementById('loading');
+    const titleEl = document.getElementById('pdfTitle');
+    const dlBtn   = document.getElementById('dlBtn');
+    const printBtn= document.getElementById('printBtn');
+
+    function openModalForFile(fileId, filename, {autoPrint=false}={}){
+      // على الموبايل: افتح inline مباشرة في تبويب جديد
+      if (IS_MOBILE) {
+        window.open(INLINE(fileId), '_blank');
+        return { whenReadyToPrint: ()=>{} };
+      }
+
+      // ديسكتوب: مودال + inline من الباكند
+      state.id=fileId; state.name=filename; state.autoPrint=autoPrint;
+
+      titleEl.textContent = `معاينة: ${filename||''}`;
+      dlBtn.href = DOWNLOAD(fileId);
+      dlBtn.setAttribute('download', filename||'file');
+
+      frame.style.display='none';
+      loader.style.display='flex';
+      frame.src='about:blank';
+
+      frame.onload = ()=>{
+        loader.style.display='none';
+        frame.style.display='block';
+        if(state.autoPrint){
+          setTimeout(()=>{ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch{} }, 400);
+        }
+      };
+      frame.onerror = ()=>{};
+      frame.src = INLINE(fileId) + '#toolbar=1&navpanes=0&view=fitH';
+
+      modal.style.display='block';
+      return {
+        whenReadyToPrint: (cb)=>{
+          const id=setInterval(()=>{
+            if(frame.style.display==='block'){
+              clearInterval(id);
+              cb(frame);
+            }
+          }, 200);
+        }
+      };
+    }
+
+    function closeModal(){ frame.src='about:blank'; modal.style.display='none'; }
+
+    // زر الطباعة داخل المودال (Desktop)
+    printBtn.addEventListener('click', ()=>{
+      try{ frame.contentWindow.focus(); frame.contentWindow.print(); }
+      catch{
+        const w = window.open(INLINE(state.id),'_blank');
+        const id=setInterval(()=>{ try{ w.focus(); w.print(); clearInterval(id);}catch{} }, 500);
+      }
+    });
+
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+    // ===== جلب الملفات من مجلد درايف البنزين عبر API جديد
+    async function fetchDriveGasFiles(){
+      try{
+        // تعديل: استخدم ID مجلد البنزين في درايف
+        // يجب أن يكون لديك endpoint backend يرجع ملفات هذا المجلد
+        // مثال: /api/drive/gas أو /api/drive/folder?id=1yHrqkmMP0brzJ4iwnEIz22DejTHaF7vy
+        const data = await fetch('/api/invoices/fuel?refresh=0', { cache: 'no-store' });
+        if(!data.ok) throw new Error('HTTP '+data.status);
+        const response = await data.json();
+        const files = (response && response.invoices) || [];
+
+        renderGasInvoices(files);
+      }catch{
+        document.getElementById('invoices').innerHTML='<div class="no-invoices">تعذر جلب الفواتير.</div>';
+      }
+    }
+
+    function renderGasInvoices(files){
+      const root=document.getElementById('invoices'); root.innerHTML='';
+      if(!files.length){
+        root.innerHTML='<div class="no-invoices">لا توجد فواتير بنزين حالياً.</div>';
+        return;
+      }
+
+      files.forEach(f=>{
+        const label  = prettyLabelFromName(f.name||'');
+        const created= formatDateLocal(f.createdTime);
+
+        const card=document.createElement('div'); card.className='invoice';
+        card.innerHTML=`
+          <div class="invoice-head">
+            <div class="invoice-title">${label}</div>
+            <span class="badge">${created}</span>
+          </div>
+          <div class="invoice-det">${f.name}</div>
+          <div class="actions">
+            <button class="btn primary" type="button">عرض ${label}</button>
+            <a class="btn linklike" href="${DOWNLOAD(f.id)}" download target="_self" rel="noopener">تحميل ${label}</a>
+            <button class="btn" type="button">طباعة ${label}</button>
+          </div>
+        `;
+
+        const [viewBtn,, printBtnCard] = card.querySelectorAll('.actions .btn, .actions .linklike');
+
+        // عرض
+        viewBtn.addEventListener('click', ()=> openModalForFile(f.id, f.name, {autoPrint:false}));
+
+        // طباعة
+        printBtnCard.addEventListener('click', ()=>{
+          const ctrl = openModalForFile(f.id, f.name, {autoPrint:!IS_MOBILE});
+          if (!IS_MOBILE) {
+            ctrl.whenReadyToPrint((fr)=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch{} });
+          }
+        });
+
+        root.appendChild(card);
+      });
+    }
+
+    fetchDriveGasFiles();
+    setInterval(fetchDriveGasFiles, 30000);
+  </script>
+</body>
+</html>

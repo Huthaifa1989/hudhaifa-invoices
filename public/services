@@ -1,0 +1,77 @@
+﻿const { google } = require('googleapis');
+const crypto = require('crypto');
+const mime = require('mime-types');
+const { admin, db, bucket } = require('../config/firebase');
+
+const INVOICES_COLLECTION = process.env.INVOICES_COLLECTION || 'hudhaifa_invoices';
+
+function driveClient() {
+  const oAuth2Client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+  oAuth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  return google.drive({ version: 'v3', auth: oAuth2Client });
+}
+
+async function importFromDrive() {
+  if (!process.env.DRIVE_FOLDER_ID) throw new Error('Missing DRIVE_FOLDER_ID');
+
+  const drive = driveClient();
+  const filesRes = await drive.files.list({
+    q: '' in parents and (mimeType contains 'pdf' or mimeType contains 'image') and trashed=false,
+    fields: 'files(id,name,mimeType,size,modifiedTime)'
+  });
+
+  let imported = 0, skipped = 0, errors = 0;
+
+  for (const f of (filesRes.data.files || [])) {
+    try {
+      const exists = await db.collection(INVOICES_COLLECTION).where('driveFileId', '==', f.id).limit(1).get();
+      if (!exists.empty) { skipped++; continue; }
+
+      const res = await drive.files.get({ fileId: f.id, alt: 'media' }, { responseType: 'arraybuffer' });
+      const buffer = Buffer.from(res.data);
+      const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+      const ext = mime.extension(f.mimeType) || 'bin';
+      const fileName = ${f.id}_.;
+      const date = new Date(f.modifiedTime || Date.now());
+      const storagePath = invoices/drive/\/\;
+
+      const file = bucket.file(storagePath);
+      await file.save(buffer, { contentType: f.mimeType, resumable: false, metadata: { metadata: { source: 'drive', driveFileId: f.id, hash } } });
+      const [signedUrl] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 1000*60*60*24*30 });
+
+      await db.collection(INVOICES_COLLECTION).add({
+        driveFileId: f.id,
+        vendor: 'Unknown',
+        subject: f.name,
+        category: null,
+        fileName: f.name,
+        fileUrl: signedUrl,
+        storagePath,
+        fileSize: parseInt(f.size) || buffer.length,
+        fileHash: hash,
+        mimeType: f.mimeType,
+        currency: 'ILS',
+        amount: null,
+        date: admin.firestore.Timestamp.fromDate(date),
+        source: 'drive',
+        uploadedManually: false,
+        uploadedBy: 'drive-importer',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      imported++;
+    } catch (e) {
+      console.error('drive import error', e);
+      errors++;
+    }
+  }
+
+  return { imported, skipped, errors };
+}
+
+module.exports = { importFromDrive };

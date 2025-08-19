@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolt Invoices - Simple</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .header {
+            background: #00AEEF;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .invoice {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .invoice h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .invoice p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            background: #00AEEF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0098d1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Wolt Invoices</h1>
+        <p>Local Development Server Connected to Production Database</p>
+    </div>
+
+    <div id="status" class="loading">Loading invoices...</div>
+    <div id="results"></div>
+
+    <script>
+        async function loadWoltInvoices() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                statusDiv.innerHTML = 'Loading invoices...';
+                statusDiv.className = 'loading';
+                
+                console.log('Fetching from:', '/api/invoices/wolt');
+                const response = await fetch('/api/invoices/wolt');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data && data.invoices && data.invoices.length > 0) {
+                    statusDiv.innerHTML = `✅ Loaded ${data.invoices.length} Wolt invoices successfully!`;
+                    statusDiv.className = 'success';
+                    
+                    let html = '<h2>Wolt Invoices:</h2>';
+                    data.invoices.slice(0, 10).forEach((invoice, index) => {
+                        html += `
+                            <div class="invoice">
+                                <h3>${index + 1}. ${invoice.subject || 'No Subject'}</h3>
+                                <p><strong>From:</strong> ${invoice.from || 'Unknown'}</p>
+                                <p><strong>Date:</strong> ${invoice.date || 'Unknown'}</p>
+                                <p><strong>Snippet:</strong> ${(invoice.snippet || '').substring(0, 150)}...</p>
+                            </div>
+                        `;
+                    });
+                    
+                    if (data.invoices.length > 10) {
+                        html += `<p><em>... and ${data.invoices.length - 10} more invoices</em></p>`;
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                } else {
+                    throw new Error('No invoices found in response');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                statusDiv.className = 'error';
+                resultsDiv.innerHTML = '<p>Check the browser console for more details.</p>';
+            }
+        }
+
+        // Load invoices when page loads
+        window.onload = function() {
+            console.log('Page loaded, starting to fetch invoices...');
+            loadWoltInvoices();
+        };
+    </script>
+</body>
+</html>
